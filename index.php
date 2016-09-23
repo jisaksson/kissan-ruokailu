@@ -1,4 +1,53 @@
 <?php
+error_reporting(E_ALL);
+
+
+//Declare some variables
+//Allowed time between meals (hours)
+$mealtime = 4;
+
+$where = array(
+		'0' => "Cupboard",
+		'1' => "Fridge"
+);
+
+
+//Function for checking that cat is fed properly
+function tummy_full(PDO $pdo) {
+	global $mealtime;
+	//Get latest meal time
+	$stmt = $pdo->prepare("SELECT * FROM ruokailu ORDER BY r_id DESC LIMIT 1");
+	$stmt->execute();
+	$result = $stmt->fetch(PDO::FETCH_ASSOC);
+	
+	//Format timestamo
+	$ts = new DateTime($result['timestamp']);
+	$date = $ts->format('d.m.');
+	$time = $ts->format('H:i');
+	
+	//Declare wake hours / feeding hours etc.
+	$morning = new DateTime('07:00');
+	$morning = $morning->format('H:i');
+	$night	 = new DateTime('23:59');
+	$night	 = $night->format('H:i');
+	$now = new DateTime('NOW');
+	$nowhi = $now->format('H:i');
+	
+	//Interval between now and last meal
+	$interval = $ts->diff(new DateTime("NOW"));
+	$minutedif = $interval->h * 60;
+	$minutedif += $interval->i;
+	
+	//Check if cat/dog is fed in mannerly time
+	if($time > $morning && $time < $night && round($minutediff) < $mealtime){
+		return array(true, $time);
+	}else{
+		return array(false, $time);
+	}
+	
+}
+
+//SQL Connect
 $dsn = "mysql:host=localhost;dbname=voldemort;charset=utf8";
 $opt = array(
     PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -8,8 +57,10 @@ $pdo = new PDO($dsn, '', '', $opt);
 
 session_start();
 
+//Fetch all meal times
 $stmt = $pdo->prepare("SELECT * FROM ruokailu ORDER BY r_id DESC");
 $stmt->execute();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -52,11 +103,28 @@ $stmt->execute();
         </nav>
       </div>
     </nav>
-
+	 <?php
+	  $tummy = tummy_full($pdo);
+	  if($tummy[0]) {
+	 	echo '<div class="alert alert-success" role="alert">
+			<strong>Cat feeded!</strong> Don\'t worry, last meal was @ '.$tummy[1].'!
+		</div>';
+	  }else {
+		echo '<div class="alert alert-danger" role="alert">
+			<strong>Feed your cat now!</strong> You fed the cat previously @ '.$tummy[1].'!
+		</div>';
+	    
+	  }
+	  ?>
     <div class="container-fluid">
       <div class="row">
         <div class="col-sm-12 main">
           <h1>Voldemortin ruokailu</h1>
+			<p>
+			<?php 
+				tummy_full($pdo); 
+			?>
+			</p>
           <div class="table-responsive">
             <table class="table table-striped">
               <thead>
